@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElekPrep — Sample Prep for Elektron</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #111113;
+  --surface: #1a1a1e;
+  --surface2: #222226;
+  --border: #333338;
+  --text: #e0e0e0;
+  --text-dim: #888890;
+  --accent: #e8841a;
+  --accent-dim: #c06a10;
+  --accent-glow: rgba(232, 132, 26, 0.15);
+  --green: #4caf50;
+  --red: #e05050;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+
+/* Header */
+header {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 12px;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+}
+
+.logo span {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.device-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-select label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.device-select select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.device-select select:focus {
+  border-color: var(--accent);
+}
+
+/* Main container */
+main {
+  width: 100%;
+  max-width: 800px;
+  padding: 0 24px 40px;
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.drop-zone.has-file {
+  padding: 16px 24px;
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.drop-zone-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.drop-zone-text {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.drop-zone-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.drop-zone input[type="file"] {
+  display: none;
+}
+
+.file-info {
+  display: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.drop-zone.has-file .file-info { display: flex; }
+.drop-zone.has-file .drop-zone-icon,
+.drop-zone.has-file .drop-zone-text,
+.drop-zone.has-file .drop-zone-hint { display: none; }
+
+.file-name {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.file-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.file-remove:hover { color: var(--red); }
+
+/* Waveform */
+.waveform-container {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.waveform-container.visible { display: block; }
+
+.waveform-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+canvas#waveform {
+  width: 100%;
+  height: 140px;
+  cursor: crosshair;
+  border-radius: 4px;
+}
+
+.waveform-time {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.trim-info {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+/* Playback */
+.playback-row {
+  display: none;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.playback-row.visible { display: flex; }
+
+.play-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.play-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.play-btn.playing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Panels */
+.panel {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.panel.visible { display: block; }
+
+.panel-title {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* Source info */
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.source-item {
+  text-align: center;
+}
+
+.source-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.source-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Settings */
+.setting-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-child { border-bottom: none; }
+
+.setting-label {
+  font-size: 14px;
+}
+
+.setting-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--surface2);
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.toggle input:checked ~ .toggle-track {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.toggle input:checked ~ .toggle-thumb {
+  left: 21px;
+  background: var(--accent);
+}
+
+/* Loop section */
+.loop-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.loop-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loop-input label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.loop-input input {
+  width: 70px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+
+.loop-input input:focus {
+  border-color: var(--accent);
+}
+
+.loop-result {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.loop-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.loop-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Export */
+.export-btn {
+  display: none;
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+
+.export-btn.visible { display: block; }
+
+.export-btn:hover {
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+}
+
+.export-btn:active {
+  transform: translateY(0);
+}
+
+/* Conversion warning */
+.conversion-warning {
+  display: none;
+  background: rgba(232, 132, 26, 0.08);
+  border: 1px solid rgba(232, 132, 26, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.conversion-warning.visible { display: block; }
+
+/* Footer */
+footer {
+  width: 100%;
+  max-width: 800px;
+  padding: 20px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+/* Help text */
+.help-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  opacity: 0.75;
+}
+
+.setting-help {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.65;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .source-grid { grid-template-columns: repeat(2, 1fr); }
+  .loop-row { flex-wrap: wrap; }
+  .loop-result { margin-left: 0; width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ElekPrep <span>v0.1</span></div>
+  <div class="device-select">
+    <label>Device</label>
+    <select id="deviceSelect" title="Select your Elektron device. This sets the target sample rate, bit depth, channel count, and max sample length for export.">
+      <option value="digitakt">Digitakt</option>
+      <option value="digitakt2" selected>Digitakt II</option>
+      <option value="rytm">Analog Rytm</option>
+      <option value="model-samples">Model:Samples</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon">&#9676;</div>
+    <div class="drop-zone-text">Drop an audio file here or click to browse</div>
+    <div class="drop-zone-hint">WAV, AIFF, MP3, FLAC, OGG</div>
+    <input type="file" id="fileInput" accept="audio/*,.wav,.aiff,.aif,.mp3,.flac,.ogg">
+    <div class="file-info">
+      <span class="file-name" id="fileName"></span>
+      <span class="file-meta" id="fileMeta"></span>
+      <button class="file-remove" id="fileRemove" title="Remove file">&times;</button>
+    </div>
+  </div>
+
+  <!-- Conversion Warning -->
+  <div class="conversion-warning" id="conversionWarning"></div>
+
+  <!-- Waveform -->
+  <div class="waveform-container" id="waveformContainer">
+    <div class="waveform-label">Waveform</div>
+    <div class="help-text">Drag the green (start) and red (end) handles to select which portion of the audio to keep. The dimmed areas outside the handles will be cut. When "Auto zero-cross" is on, handles snap to points where the waveform crosses silence, preventing clicks.</div>
+    <canvas id="waveform"></canvas>
+    <div class="waveform-time">
+      <span id="trimStart" title="Trim start position in seconds">0.000s</span>
+      <span class="trim-info" id="trimInfo" title="Duration and sample count of the trimmed selection"></span>
+      <span id="trimEnd" title="Trim end position in seconds">0.000s</span>
+    </div>
+  </div>
+
+  <!-- Playback -->
+  <div class="playback-row" id="playbackRow">
+    <button class="play-btn" id="playOriginal" title="Play the full original audio file as-is, before any processing">&#9654; Play Original</button>
+    <button class="play-btn" id="playTrimmed" title="Play a preview of the final output: trimmed, resampled, normalized, and converted to the target device format">&#9654; Play Processed</button>
+  </div>
+
+  <!-- Source Info -->
+  <div class="panel" id="sourcePanel">
+    <div class="panel-title">Source</div>
+    <div class="help-text">Original properties of your uploaded file. If these differ from your device's requirements, ElekPrep will convert automatically on export.</div>
+    <div class="source-grid">
+      <div class="source-item">
+        <div class="source-value" id="srcRate">—</div>
+        <div class="source-label">Sample Rate</div>
+      </div>
+      <div class="source-item">
+        <div class="source-value" id="srcDepth">—</div>
+        <div class="source-label">Bit Depth</div>
+      </div>
+      <div class="source-item">
+        <div class="source-value" id="srcChannels">—</div>
+        <div class="source-label">Channels</div>
+      </div>
+      <div class="source-item">
+        <div class="source-value" id="srcDuration">—</div>
+        <div class="source-label">Duration</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Settings -->
+  <div class="panel" id="settingsPanel">
+    <div class="panel-title">Output Settings</div>
+    <div class="help-text">Controls how your sample is processed before export. The target format is set automatically based on your selected device.</div>
+    <div class="setting-row">
+      <div>
+        <span class="setting-label">Auto zero-cross trim</span>
+        <div class="setting-help">Snap trim points to where the waveform crosses zero. Eliminates clicks and pops at sample boundaries.</div>
+      </div>
+      <label class="toggle" title="When enabled, trim handles automatically snap to zero-crossing points to prevent audible clicks at the start and end of your sample">
+        <input type="checkbox" id="zeroCrossToggle" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div>
+        <span class="setting-label">Normalize to -1 dB</span>
+        <div class="setting-help">Scale volume so the loudest peak hits -1 dB. Maximizes loudness without clipping.</div>
+      </div>
+      <label class="toggle" title="Scale the audio so its peak amplitude reaches -1 dB, giving maximum volume with 1 dB of headroom to prevent clipping">
+        <input type="checkbox" id="normalizeToggle" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div>
+        <span class="setting-label">Target format</span>
+        <div class="setting-help">Auto-set by your device. All Elektron samplers use 48kHz / 16-bit. Channel count varies by device.</div>
+      </div>
+      <span class="setting-value" id="targetFormat">48kHz / 16-bit / Stereo</span>
+    </div>
+  </div>
+
+  <!-- Loop Mode -->
+  <div class="panel" id="loopPanel">
+    <div class="panel-title">Loop Calculator</div>
+    <div class="help-text">Calculate the exact trim point for a seamless loop. Enter the <strong>original BPM of the audio</strong> (not your project tempo) and the number of sequencer steps (16th notes). The button moves the end handle so the selection is exactly that many steps long. To change tempo afterward, use timestretch on your Digitakt or DAW.</div>
+    <div class="loop-row">
+      <div class="loop-input">
+        <label>BPM</label>
+        <input type="number" id="loopBpm" value="120" min="20" max="999" title="The original tempo of the audio content, not your target project tempo. This determines where to cut for a seamless loop.">
+      </div>
+      <div class="loop-input">
+        <label>Steps</label>
+        <input type="number" id="loopSteps" value="16" min="1" max="256" title="Number of 16th-note steps. 16 steps = 1 bar, 32 steps = 2 bars, 64 steps = 4 bars">
+      </div>
+      <div class="loop-result" id="loopResult">= 2.000s (96,000 samples)</div>
+    </div>
+    <button class="loop-btn" id="loopBtn" title="Move the red trim-end handle so the selected region is exactly this loop length. If zero-cross is on, it will snap to the nearest clean cut point.">Trim to loop length</button>
+  </div>
+
+  <!-- Export -->
+  <button class="export-btn" id="exportBtn" title="Download the processed sample as a WAV file ready to load onto your Elektron device via Transfer, Elektroid, or USB. The file will be trimmed, converted, and normalized based on your settings above.">Export WAV</button>
+</main>
+
+<footer>
+  ElekPrep — Free sample prep for Elektron devices. No upload, all processing in your browser.
+</footer>
+
+<script>
+// ─── Device Profiles ─────────────────────────────────────────
+const DEVICES = {
+  digitakt:        { name: 'Digitakt',       rate: 48000, depth: 16, channels: 1, maxSeconds: 33 },
+  digitakt2:       { name: 'Digitakt II',    rate: 48000, depth: 16, channels: 2, maxSeconds: 33 },
+  rytm:            { name: 'Analog Rytm',    rate: 48000, depth: 16, channels: 1, maxSeconds: 11 },
+  'model-samples': { name: 'Model:Samples',  rate: 48000, depth: 16, channels: 1, maxSeconds: 33 },
+};
+
+// ─── State ───────────────────────────────────────────────────
+let state = {
+  originalBuffer: null,   // AudioBuffer from decoded file
+  fileName: '',
+  fileBitDepth: 0,
+  fileSampleRate: 0,      // original file sample rate (before Web Audio resampling)
+  fileChannels: 0,        // original file channel count
+  trimStart: 0,           // sample index
+  trimEnd: 0,             // sample index
+  zeroCrossings: [],      // indices
+  dragging: null,         // 'start' | 'end' | null
+  playingSource: null,
+  audioCtx: null,
+};
+
+function getDevice() {
+  return DEVICES[document.getElementById('deviceSelect').value];
+}
+
+function getAudioCtx() {
+  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return state.audioCtx;
+}
+
+// ─── Zero-Cross Detection ────────────────────────────────────
+function findZeroCrossings(samples) {
+  const crossings = [];
+  // Only include index 0 if the sample is actually at/near zero
+  if (Math.abs(samples[0]) < 0.001) crossings.push(0);
+  for (let i = 0; i < samples.length - 1; i++) {
+    if ((samples[i] <= 0 && samples[i + 1] > 0) ||
+        (samples[i] >= 0 && samples[i + 1] < 0)) {
+      crossings.push(i + 1);
+    }
+  }
+  // Only include last index if actually at/near zero
+  if (Math.abs(samples[samples.length - 1]) < 0.001) crossings.push(samples.length - 1);
+  return crossings;
+}
+
+function nearestZeroCross(crossings, index, direction) {
+  if (crossings.length === 0) return index; // no crossings, return unchanged
+  if (direction === 'forward') {
+    for (let i = 0; i < crossings.length; i++) {
+      if (crossings[i] >= index) return crossings[i];
+    }
+    return crossings[crossings.length - 1];
+  } else {
+    for (let i = crossings.length - 1; i >= 0; i--) {
+      if (crossings[i] <= index) return crossings[i];
+    }
+    return crossings[0];
+  }
+}
+
+function nearestZeroCrossEither(crossings, index) {
+  let best = crossings[0];
+  let bestDist = Math.abs(index - best);
+  for (const c of crossings) {
+    const d = Math.abs(index - c);
+    if (d < bestDist) { best = c; bestDist = d; }
+    if (c > index + bestDist) break;
+  }
+  return best;
+}
+
+// ─── Waveform Renderer ──────────────────────────────────────
+const canvas = document.getElementById('waveform');
+const ctx = canvas.getContext('2d');
+
+function drawWaveform() {
+  const buf = state.originalBuffer;
+  if (!buf) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const mid = h / 2;
+  const samples = buf.getChannelData(0);
+  const len = samples.length;
+  const step = len / w;
+
+  // Clear
+  ctx.fillStyle = '#111113';
+  ctx.fillRect(0, 0, w, h);
+
+  // Trimmed region background
+  const startX = (state.trimStart / len) * w;
+  const endX = (state.trimEnd / len) * w;
+
+  // Dim outside trim
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, startX, h);
+  ctx.fillRect(endX, 0, w - endX, h);
+
+  // Active region subtle highlight
+  ctx.fillStyle = 'rgba(232, 132, 26, 0.04)';
+  ctx.fillRect(startX, 0, endX - startX, h);
+
+  // Center line
+  ctx.strokeStyle = '#333338';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.stroke();
+
+  // Waveform
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x++) {
+    const i = Math.floor(x * step);
+    const end = Math.min(Math.floor((x + 1) * step), len);
+    let min = 1, max = -1;
+    for (let j = i; j < end; j++) {
+      if (samples[j] < min) min = samples[j];
+      if (samples[j] > max) max = samples[j];
+    }
+    const isInTrim = x >= startX && x <= endX;
+    ctx.strokeStyle = isInTrim ? '#e8841a' : '#555560';
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, mid + min * mid);
+    ctx.lineTo(x + 0.5, mid + max * mid);
+    ctx.stroke();
+  }
+
+  // Trim handles
+  drawHandle(startX, h, '#4caf50');
+  drawHandle(endX, h, '#e05050');
+
+  // Update time labels
+  const rate = buf.sampleRate;
+  document.getElementById('trimStart').textContent = (state.trimStart / rate).toFixed(3) + 's';
+  document.getElementById('trimEnd').textContent = (state.trimEnd / rate).toFixed(3) + 's';
+
+  const trimSamples = state.trimEnd - state.trimStart;
+  const trimDuration = trimSamples / rate;
+  document.getElementById('trimInfo').textContent =
+    `${trimDuration.toFixed(3)}s (${trimSamples} samples)`;
+}
+
+function drawHandle(x, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x - 1.5, 0, 3, h);
+  // Triangle top
+  ctx.beginPath();
+  ctx.moveTo(x - 6, 0);
+  ctx.lineTo(x + 6, 0);
+  ctx.lineTo(x, 8);
+  ctx.closePath();
+  ctx.fill();
+  // Triangle bottom
+  ctx.beginPath();
+  ctx.moveTo(x - 6, h);
+  ctx.lineTo(x + 6, h);
+  ctx.lineTo(x, h - 8);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ─── Waveform Interaction ────────────────────────────────────
+canvas.addEventListener('mousedown', (e) => {
+  if (!state.originalBuffer) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const w = rect.width;
+  const len = state.originalBuffer.length;
+
+  const startX = (state.trimStart / len) * w;
+  const endX = (state.trimEnd / len) * w;
+
+  if (Math.abs(x - startX) < 12) state.dragging = 'start';
+  else if (Math.abs(x - endX) < 12) state.dragging = 'end';
+  else state.dragging = null;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!state.dragging || !state.originalBuffer) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+  const len = state.originalBuffer.length;
+  let sample = Math.round((x / rect.width) * len);
+
+  const zeroCross = document.getElementById('zeroCrossToggle').checked;
+  if (zeroCross && state.zeroCrossings.length > 0) {
+    sample = nearestZeroCrossEither(state.zeroCrossings, sample);
+  }
+
+  if (state.dragging === 'start') {
+    state.trimStart = Math.min(sample, state.trimEnd - 1);
+  } else {
+    state.trimEnd = Math.max(sample, state.trimStart + 1);
+  }
+  drawWaveform();
+});
+
+window.addEventListener('mouseup', () => { state.dragging = null; });
+
+// ─── Resample ────────────────────────────────────────────────
+async function resampleBuffer(buffer, targetRate) {
+  if (buffer.sampleRate === targetRate) return buffer;
+  const offline = new OfflineAudioContext(
+    buffer.numberOfChannels,
+    Math.ceil(buffer.duration * targetRate),
+    targetRate
+  );
+  const source = offline.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offline.destination);
+  source.start(0);
+  return await offline.startRendering();
+}
+
+// ─── Process Buffer ──────────────────────────────────────────
+async function processBuffer() {
+  const buf = state.originalBuffer;
+  if (!buf) return null;
+
+  const device = getDevice();
+  const start = state.trimStart;
+  const end = state.trimEnd;
+  const trimLen = end - start;
+
+  // Extract trimmed region
+  const numChannels = Math.min(buf.numberOfChannels, device.channels);
+  const ctx = new OfflineAudioContext(numChannels, trimLen, buf.sampleRate);
+  const trimmed = ctx.createBuffer(numChannels, trimLen, buf.sampleRate);
+
+  if (numChannels === 1 && buf.numberOfChannels > 1) {
+    // Mono downmix
+    const out = trimmed.getChannelData(0);
+    const chCount = buf.numberOfChannels;
+    for (let i = 0; i < trimLen; i++) {
+      let sum = 0;
+      for (let ch = 0; ch < chCount; ch++) {
+        sum += buf.getChannelData(ch)[start + i];
+      }
+      out[i] = sum / chCount;
+    }
+  } else {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const src = buf.getChannelData(ch);
+      const dst = trimmed.getChannelData(ch);
+      for (let i = 0; i < trimLen; i++) {
+        dst[i] = src[start + i];
+      }
+    }
+  }
+
+  // Normalize
+  if (document.getElementById('normalizeToggle').checked) {
+    const targetDb = -1;
+    const targetAmp = Math.pow(10, targetDb / 20);
+    let peak = 0;
+    for (let ch = 0; ch < trimmed.numberOfChannels; ch++) {
+      const data = trimmed.getChannelData(ch);
+      for (let i = 0; i < data.length; i++) {
+        const abs = Math.abs(data[i]);
+        if (abs > peak) peak = abs;
+      }
+    }
+    if (peak > 0) {
+      const gain = targetAmp / peak;
+      for (let ch = 0; ch < trimmed.numberOfChannels; ch++) {
+        const data = trimmed.getChannelData(ch);
+        for (let i = 0; i < data.length; i++) {
+          data[i] *= gain;
+        }
+      }
+    }
+  }
+
+  // Micro-fade edges to prevent clicks (64 samples = ~1.3ms at 48kHz)
+  // Short enough to be inaudible, long enough to eliminate loop-boundary clicks
+  const fadeLen = Math.min(64, Math.floor(trimmed.length / 4));
+  for (let ch = 0; ch < trimmed.numberOfChannels; ch++) {
+    const data = trimmed.getChannelData(ch);
+    for (let i = 0; i < fadeLen; i++) {
+      const gain = i / fadeLen; // linear ramp 0→1
+      data[i] *= gain;                          // fade in
+      data[data.length - 1 - i] *= gain;        // fade out
+    }
+  }
+
+  // Resample to target rate
+  const resampled = await resampleBuffer(trimmed, device.rate);
+
+  // Check max length
+  const maxSamples = device.maxSeconds * device.rate;
+  if (resampled.length > maxSamples) {
+    const clipped = new OfflineAudioContext(resampled.numberOfChannels, maxSamples, device.rate);
+    const clippedBuf = clipped.createBuffer(resampled.numberOfChannels, maxSamples, device.rate);
+    for (let ch = 0; ch < resampled.numberOfChannels; ch++) {
+      const src = resampled.getChannelData(ch);
+      const dst = clippedBuf.getChannelData(ch);
+      for (let i = 0; i < maxSamples; i++) dst[i] = src[i];
+    }
+    return clippedBuf;
+  }
+
+  return resampled;
+}
+
+// ─── WAV Encoder ─────────────────────────────────────────────
+function encodeWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const numSamples = buffer.length;
+  const dataSize = numSamples * blockAlign;
+  const headerSize = 44;
+  const totalSize = headerSize + dataSize;
+
+  const arrayBuffer = new ArrayBuffer(totalSize);
+  const view = new DataView(arrayBuffer);
+
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, totalSize - 8, true);
+  writeString(view, 8, 'WAVE');
+
+  // fmt chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);               // chunk size
+  view.setUint16(20, 1, true);                 // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // Interleave channels and convert float32 → int16
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      let sample = buffer.getChannelData(ch)[i];
+      sample = Math.max(-1, Math.min(1, sample));
+      const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(offset, int16, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+// ─── UI Logic ────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+
+document.getElementById('fileRemove').addEventListener('click', (e) => {
+  e.stopPropagation();
+  resetState();
+});
+
+async function loadFile(file) {
+  state.fileName = file.name;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const arrayBuffer = await file.arrayBuffer();
+
+  // Parse original file metadata from header (before Web Audio resamples it)
+  state.fileBitDepth = 16; // default
+  state.fileSampleRate = 0;
+  state.fileChannels = 0;
+
+  if (ext === 'wav' && arrayBuffer.byteLength > 44) {
+    const hv = new DataView(arrayBuffer);
+    // WAV fmt chunk: offset 20=format, 22=channels, 24=sampleRate, 34=bitsPerSample
+    const channels = hv.getUint16(22, true);
+    const sampleRate = hv.getUint32(24, true);
+    const bps = hv.getUint16(34, true);
+    if (sampleRate > 0 && sampleRate < 384001) state.fileSampleRate = sampleRate;
+    if (channels > 0 && channels <= 8) state.fileChannels = channels;
+    if (bps === 16 || bps === 24 || bps === 32) state.fileBitDepth = bps;
+  } else if (ext === 'aiff' || ext === 'aif') {
+    state.fileBitDepth = 24; // AIFF is commonly 24-bit
+  }
+
+  const audioCtx = getAudioCtx();
+  try {
+    state.originalBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+  } catch (err) {
+    alert('Could not decode audio file. Try a different format.');
+    return;
+  }
+
+  const buf = state.originalBuffer;
+
+  // Fall back to Web Audio values if header parsing didn't work
+  if (!state.fileSampleRate) state.fileSampleRate = buf.sampleRate;
+  if (!state.fileChannels) state.fileChannels = buf.numberOfChannels;
+  state.trimStart = 0;
+  state.trimEnd = buf.length;
+
+  // Compute zero crossings
+  state.zeroCrossings = findZeroCrossings(buf.getChannelData(0));
+
+  // Auto zero-cross trim
+  if (document.getElementById('zeroCrossToggle').checked) {
+    applyAutoZeroCross();
+  }
+
+  updateUI();
+  drawWaveform();
+}
+
+function applyAutoZeroCross() {
+  if (!state.originalBuffer || state.zeroCrossings.length === 0) return;
+  state.trimStart = nearestZeroCross(state.zeroCrossings, state.trimStart, 'forward');
+  state.trimEnd = nearestZeroCross(state.zeroCrossings, state.trimEnd, 'backward');
+}
+
+function resetState() {
+  stopPlayback();
+  state.originalBuffer = null;
+  state.fileName = '';
+  state.trimStart = 0;
+  state.trimEnd = 0;
+  state.zeroCrossings = [];
+  dropZone.classList.remove('has-file');
+  document.getElementById('waveformContainer').classList.remove('visible');
+  document.getElementById('playbackRow').classList.remove('visible');
+  document.getElementById('sourcePanel').classList.remove('visible');
+  document.getElementById('settingsPanel').classList.remove('visible');
+  document.getElementById('loopPanel').classList.remove('visible');
+  document.getElementById('exportBtn').classList.remove('visible');
+  document.getElementById('conversionWarning').classList.remove('visible');
+}
+
+function updateUI() {
+  const buf = state.originalBuffer;
+  if (!buf) return;
+
+  const device = getDevice();
+
+  // File info bar — use original file metadata, not Web Audio's resampled values
+  const origRate = state.fileSampleRate;
+  const origChannels = state.fileChannels;
+  const origDuration = buf.length / buf.sampleRate; // duration is preserved
+
+  dropZone.classList.add('has-file');
+  document.getElementById('fileName').textContent = state.fileName;
+  document.getElementById('fileMeta').textContent =
+    `${(origRate / 1000).toFixed(1)}kHz / ${state.fileBitDepth}-bit / ${origChannels === 1 ? 'Mono' : 'Stereo'}`;
+
+  // Source info
+  document.getElementById('srcRate').textContent = (origRate / 1000).toFixed(1) + 'kHz';
+  document.getElementById('srcDepth').textContent = state.fileBitDepth + '-bit';
+  document.getElementById('srcChannels').textContent = origChannels === 1 ? 'Mono' : 'Stereo';
+  document.getElementById('srcDuration').textContent = origDuration.toFixed(3) + 's';
+
+  // Target format
+  const chLabel = device.channels === 1 ? 'Mono' : 'Stereo';
+  document.getElementById('targetFormat').textContent =
+    `${device.rate / 1000}kHz / ${device.depth}-bit / ${chLabel}`;
+
+  // Conversion warning — compare original file specs vs device target
+  const warnings = [];
+  if (origRate !== device.rate) warnings.push(`${origRate / 1000}kHz → ${device.rate / 1000}kHz`);
+  if (state.fileBitDepth !== device.depth) warnings.push(`${state.fileBitDepth}-bit → ${device.depth}-bit`);
+  if (origChannels > device.channels) warnings.push(`Stereo → Mono (L+R sum)`);
+  if (origDuration > device.maxSeconds) warnings.push(`Duration exceeds ${device.maxSeconds}s limit — will be clipped`);
+
+  const warningEl = document.getElementById('conversionWarning');
+  if (warnings.length) {
+    warningEl.textContent = 'Will convert: ' + warnings.join(' · ');
+    warningEl.classList.add('visible');
+  } else {
+    warningEl.classList.remove('visible');
+  }
+
+  // Loop calculator
+  updateLoopCalc();
+
+  // Show panels
+  document.getElementById('waveformContainer').classList.add('visible');
+  document.getElementById('playbackRow').classList.add('visible');
+  document.getElementById('sourcePanel').classList.add('visible');
+  document.getElementById('settingsPanel').classList.add('visible');
+  document.getElementById('loopPanel').classList.add('visible');
+  document.getElementById('exportBtn').classList.add('visible');
+}
+
+// ─── Loop Calculator ─────────────────────────────────────────
+function updateLoopCalc() {
+  const bpm = parseFloat(document.getElementById('loopBpm').value) || 120;
+  const steps = parseInt(document.getElementById('loopSteps').value) || 16;
+  const device = getDevice();
+
+  const beatsPerStep = 0.25; // 16th notes
+  const beats = steps * beatsPerStep;
+  const seconds = (beats / bpm) * 60;
+  const samples = Math.round(seconds * device.rate);
+
+  document.getElementById('loopResult').textContent =
+    `= ${seconds.toFixed(3)}s (${samples.toLocaleString()} samples)`;
+}
+
+document.getElementById('loopBpm').addEventListener('input', updateLoopCalc);
+document.getElementById('loopSteps').addEventListener('input', updateLoopCalc);
+
+document.getElementById('loopBtn').addEventListener('click', () => {
+  if (!state.originalBuffer) return;
+
+  const bpm = parseFloat(document.getElementById('loopBpm').value) || 120;
+  const steps = parseInt(document.getElementById('loopSteps').value) || 16;
+  const beatsPerStep = 0.25;
+  const beats = steps * beatsPerStep;
+  const seconds = (beats / bpm) * 60;
+
+  const targetSamples = Math.round(seconds * state.originalBuffer.sampleRate);
+  let newEnd = state.trimStart + targetSamples;
+  newEnd = Math.min(newEnd, state.originalBuffer.length);
+
+  // Snap to zero crossing
+  if (document.getElementById('zeroCrossToggle').checked && state.zeroCrossings.length > 0) {
+    newEnd = nearestZeroCrossEither(state.zeroCrossings, newEnd);
+  }
+
+  state.trimEnd = newEnd;
+  drawWaveform();
+});
+
+// ─── Playback ────────────────────────────────────────────────
+function stopPlayback() {
+  if (state.playingSource) {
+    try { state.playingSource.stop(); } catch (_) {}
+    state.playingSource = null;
+  }
+  document.getElementById('playOriginal').classList.remove('playing');
+  document.getElementById('playTrimmed').classList.remove('playing');
+  document.getElementById('playOriginal').innerHTML = '&#9654; Play Original';
+  document.getElementById('playTrimmed').innerHTML = '&#9654; Play Processed';
+}
+
+document.getElementById('playOriginal').addEventListener('click', () => {
+  if (state.playingSource) { stopPlayback(); return; }
+  if (!state.originalBuffer) return;
+  const ctx = getAudioCtx();
+  const source = ctx.createBufferSource();
+  source.buffer = state.originalBuffer;
+  source.connect(ctx.destination);
+  source.start();
+  state.playingSource = source;
+  const btn = document.getElementById('playOriginal');
+  btn.classList.add('playing');
+  btn.innerHTML = '&#9632; Stop';
+  source.onended = () => stopPlayback();
+});
+
+document.getElementById('playTrimmed').addEventListener('click', async () => {
+  if (state.playingSource) { stopPlayback(); return; }
+  if (!state.originalBuffer) return;
+  const processed = await processBuffer();
+  if (!processed) return;
+  const ctx = getAudioCtx();
+  const source = ctx.createBufferSource();
+  source.buffer = processed;
+  source.connect(ctx.destination);
+  source.start();
+  state.playingSource = source;
+  const btn = document.getElementById('playTrimmed');
+  btn.classList.add('playing');
+  btn.innerHTML = '&#9632; Stop';
+  source.onended = () => stopPlayback();
+});
+
+// ─── Export ──────────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  if (!state.originalBuffer) return;
+  const btn = document.getElementById('exportBtn');
+  btn.textContent = 'Processing...';
+
+  try {
+    const processed = await processBuffer();
+    if (!processed) return;
+    const blob = encodeWav(processed);
+    const device = getDevice();
+
+    // Generate filename
+    const baseName = state.fileName.replace(/\.[^.]+$/, '');
+    const suffix = device.name.replace(/[:\s]/g, '_');
+    const outName = `${baseName}_${suffix}.wav`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = outName;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    btn.textContent = 'Export WAV';
+  }
+});
+
+// ─── Settings Changes ────────────────────────────────────────
+document.getElementById('deviceSelect').addEventListener('change', () => {
+  if (state.originalBuffer) updateUI();
+  drawWaveform();
+});
+
+document.getElementById('zeroCrossToggle').addEventListener('change', (e) => {
+  if (state.originalBuffer && e.target.checked) {
+    applyAutoZeroCross();
+    drawWaveform();
+  }
+});
+
+// ─── Resize ──────────────────────────────────────────────────
+window.addEventListener('resize', () => { if (state.originalBuffer) drawWaveform(); });
+
+// ─── Init ────────────────────────────────────────────────────
+updateLoopCalc();
+</script>
+</body>
+</html>
