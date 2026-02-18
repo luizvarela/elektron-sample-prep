@@ -556,6 +556,7 @@ footer {
   <div class="playback-row" id="playbackRow">
     <button class="play-btn" id="playOriginal" title="Play the full original audio file as-is, before any processing">&#9654; Play Original</button>
     <button class="play-btn" id="playTrimmed" title="Play a preview of the final output: trimmed, resampled, normalized, and converted to the target device format">&#9654; Play Processed</button>
+    <button class="play-btn" id="playLoop" title="Loop the trimmed region continuously — keeps playing while you drag">&#128257; Loop Preview</button>
   </div>
 
   <!-- Source Info -->
@@ -666,6 +667,11 @@ let state = {
   dragLastX: 0,
   playingSource: null,
   audioCtx: null,
+  loopPlaying: false,
+  playbackStartTime: 0,  // AudioContext time when playback started
+  playbackOffset: 0,     // sample offset where playback started
+  playbackBuffer: null,   // buffer being played (for duration calc)
+  animFrameId: null,
 };
 
 function getDevice() {
@@ -783,6 +789,16 @@ function drawWaveform() {
     ctx.stroke();
   }
 
+  // Playhead
+  if (state.playingSource && state.playbackBuffer) {
+    const playheadSample = getPlayheadSample();
+    if (playheadSample !== null) {
+      const px = (playheadSample / len) * w;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(px - 0.5, 0, 1, h);
+    }
+  }
+
   // Trim handles
   drawHandle(startX, h, '#4caf50');
   drawHandle(endX, h, '#e05050');
@@ -796,6 +812,50 @@ function drawWaveform() {
   const trimDuration = trimSamples / rate;
   document.getElementById('trimInfo').textContent =
     `${trimDuration.toFixed(3)}s (${trimSamples} samples)`;
+}
+
+function getPlayheadSample() {
+  if (!state.playingSource || !state.playbackBuffer) return null;
+  const ctx = getAudioCtx();
+  const elapsed = ctx.currentTime - state.playbackStartTime;
+  const rate = state.playbackBuffer.sampleRate;
+
+  if (state.loopPlaying) {
+    const loopStartSec = state.trimStart / state.originalBuffer.sampleRate;
+    const loopEndSec = state.trimEnd / state.originalBuffer.sampleRate;
+    const loopLen = loopEndSec - loopStartSec;
+    if (loopLen <= 0) return null;
+    const pos = loopStartSec + ((elapsed) % loopLen);
+    return Math.round(pos * state.originalBuffer.sampleRate);
+  }
+
+  // One-shot: playback on originalBuffer
+  if (state.playbackBuffer === state.originalBuffer) {
+    const sample = state.playbackOffset + Math.round(elapsed * rate);
+    return sample < state.playbackBuffer.length ? sample : null;
+  }
+
+  // Processed buffer: map elapsed time into trim region
+  const sample = Math.round(elapsed * rate);
+  if (sample >= state.playbackBuffer.length) return null;
+  const frac = sample / state.playbackBuffer.length;
+  return Math.round(state.trimStart + frac * (state.trimEnd - state.trimStart));
+}
+
+function startPlayheadAnimation() {
+  stopPlayheadAnimation();
+  function tick() {
+    drawWaveform();
+    state.animFrameId = requestAnimationFrame(tick);
+  }
+  state.animFrameId = requestAnimationFrame(tick);
+}
+
+function stopPlayheadAnimation() {
+  if (state.animFrameId) {
+    cancelAnimationFrame(state.animFrameId);
+    state.animFrameId = null;
+  }
 }
 
 function drawHandle(x, h, color) {
@@ -891,6 +951,7 @@ canvas.addEventListener('mousemove', (e) => {
       state.trimEnd = Math.max(sample, state.trimStart + 1);
     }
   }
+  restartLoopIfPlaying();
   drawWaveform();
 });
 
@@ -1249,18 +1310,47 @@ document.getElementById('loopBtn').addEventListener('click', () => {
 
 // ─── Playback ────────────────────────────────────────────────
 function stopPlayback() {
+  stopPlayheadAnimation();
   if (state.playingSource) {
     try { state.playingSource.stop(); } catch (_) {}
     state.playingSource = null;
   }
+  state.loopPlaying = false;
+  state.playbackBuffer = null;
   document.getElementById('playOriginal').classList.remove('playing');
   document.getElementById('playTrimmed').classList.remove('playing');
+  document.getElementById('playLoop').classList.remove('playing');
   document.getElementById('playOriginal').innerHTML = '&#9654; Play Original';
   document.getElementById('playTrimmed').innerHTML = '&#9654; Play Processed';
+  document.getElementById('playLoop').innerHTML = '&#128257; Loop Preview';
+}
+
+let _loopRestartTimer = null;
+function restartLoopIfPlaying() {
+  if (!state.loopPlaying) return;
+  clearTimeout(_loopRestartTimer);
+  _loopRestartTimer = setTimeout(() => {
+    if (!state.loopPlaying || !state.originalBuffer) return;
+    if (state.playingSource) {
+      try { state.playingSource.stop(); } catch (_) {}
+      state.playingSource = null;
+    }
+    const ctx = getAudioCtx();
+    const source = ctx.createBufferSource();
+    source.buffer = state.originalBuffer;
+    source.loop = true;
+    source.loopStart = state.trimStart / state.originalBuffer.sampleRate;
+    source.loopEnd = state.trimEnd / state.originalBuffer.sampleRate;
+    source.connect(ctx.destination);
+    source.start(0, source.loopStart);
+    state.playingSource = source;
+    state.playbackStartTime = ctx.currentTime;
+    state.playbackOffset = state.trimStart;
+  }, 80);
 }
 
 document.getElementById('playOriginal').addEventListener('click', () => {
-  if (state.playingSource) { stopPlayback(); return; }
+  if (state.playingSource) { stopPlayback(); drawWaveform(); return; }
   if (!state.originalBuffer) return;
   const ctx = getAudioCtx();
   const source = ctx.createBufferSource();
@@ -1268,14 +1358,18 @@ document.getElementById('playOriginal').addEventListener('click', () => {
   source.connect(ctx.destination);
   source.start();
   state.playingSource = source;
+  state.playbackBuffer = state.originalBuffer;
+  state.playbackStartTime = ctx.currentTime;
+  state.playbackOffset = 0;
+  startPlayheadAnimation();
   const btn = document.getElementById('playOriginal');
   btn.classList.add('playing');
   btn.innerHTML = '&#9632; Stop';
-  source.onended = () => stopPlayback();
+  source.onended = () => { stopPlayback(); drawWaveform(); };
 });
 
 document.getElementById('playTrimmed').addEventListener('click', async () => {
-  if (state.playingSource) { stopPlayback(); return; }
+  if (state.playingSource) { stopPlayback(); drawWaveform(); return; }
   if (!state.originalBuffer) return;
   const processed = await processBuffer();
   if (!processed) return;
@@ -1285,10 +1379,36 @@ document.getElementById('playTrimmed').addEventListener('click', async () => {
   source.connect(ctx.destination);
   source.start();
   state.playingSource = source;
+  state.playbackBuffer = processed;
+  state.playbackStartTime = ctx.currentTime;
+  state.playbackOffset = 0;
+  startPlayheadAnimation();
   const btn = document.getElementById('playTrimmed');
   btn.classList.add('playing');
   btn.innerHTML = '&#9632; Stop';
-  source.onended = () => stopPlayback();
+  source.onended = () => { stopPlayback(); drawWaveform(); };
+});
+
+document.getElementById('playLoop').addEventListener('click', () => {
+  if (state.playingSource) { stopPlayback(); drawWaveform(); return; }
+  if (!state.originalBuffer) return;
+  const ctx = getAudioCtx();
+  const source = ctx.createBufferSource();
+  source.buffer = state.originalBuffer;
+  source.loop = true;
+  source.loopStart = state.trimStart / state.originalBuffer.sampleRate;
+  source.loopEnd = state.trimEnd / state.originalBuffer.sampleRate;
+  source.connect(ctx.destination);
+  source.start(0, source.loopStart);
+  state.playingSource = source;
+  state.playbackBuffer = state.originalBuffer;
+  state.playbackStartTime = ctx.currentTime;
+  state.playbackOffset = state.trimStart;
+  state.loopPlaying = true;
+  startPlayheadAnimation();
+  const btn = document.getElementById('playLoop');
+  btn.classList.add('playing');
+  btn.innerHTML = '&#9632; Stop Loop';
 });
 
 // ─── Export ──────────────────────────────────────────────────
