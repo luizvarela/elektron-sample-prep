@@ -204,6 +204,8 @@ canvas#waveform {
   cursor: crosshair;
   border-radius: 4px;
 }
+canvas#waveform.grab-cursor { cursor: grab; }
+canvas#waveform.grabbing-cursor { cursor: grabbing; }
 
 .waveform-time {
   display: flex;
@@ -660,7 +662,8 @@ let state = {
   trimStart: 0,           // sample index
   trimEnd: 0,             // sample index
   zeroCrossings: [],      // indices
-  dragging: null,         // 'start' | 'end' | null
+  dragging: null,         // 'start' | 'end' | 'region' | null
+  dragLastX: 0,
   playingSource: null,
   audioCtx: null,
 };
@@ -825,32 +828,76 @@ canvas.addEventListener('mousedown', (e) => {
   const startX = (state.trimStart / len) * w;
   const endX = (state.trimEnd / len) * w;
 
-  if (Math.abs(x - startX) < 12) state.dragging = 'start';
-  else if (Math.abs(x - endX) < 12) state.dragging = 'end';
-  else state.dragging = null;
+  if (Math.abs(x - startX) < 12) {
+    state.dragging = 'start';
+  } else if (Math.abs(x - endX) < 12) {
+    state.dragging = 'end';
+  } else if (x > startX + 12 && x < endX - 12) {
+    state.dragging = 'region';
+    state.dragLastX = x;
+    canvas.classList.add('grabbing-cursor');
+    canvas.classList.remove('grab-cursor');
+  } else {
+    state.dragging = null;
+  }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-  if (!state.dragging || !state.originalBuffer) return;
   const rect = canvas.getBoundingClientRect();
   const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-  const len = state.originalBuffer.length;
-  let sample = Math.round((x / rect.width) * len);
 
-  const zeroCross = document.getElementById('zeroCrossToggle').checked;
-  if (zeroCross && state.zeroCrossings.length > 0) {
-    sample = nearestZeroCrossEither(state.zeroCrossings, sample);
+  // Update cursor on hover when not dragging
+  if (!state.dragging && state.originalBuffer) {
+    const len = state.originalBuffer.length;
+    const w = rect.width;
+    const startX = (state.trimStart / len) * w;
+    const endX = (state.trimEnd / len) * w;
+    if (Math.abs(x - startX) < 12 || Math.abs(x - endX) < 12) {
+      canvas.style.cursor = 'col-resize';
+      canvas.classList.remove('grab-cursor');
+    } else if (x > startX + 12 && x < endX - 12) {
+      canvas.style.cursor = '';
+      canvas.classList.add('grab-cursor');
+    } else {
+      canvas.style.cursor = '';
+      canvas.classList.remove('grab-cursor');
+    }
   }
 
-  if (state.dragging === 'start') {
-    state.trimStart = Math.min(sample, state.trimEnd - 1);
+  if (!state.dragging || !state.originalBuffer) return;
+  const len = state.originalBuffer.length;
+
+  if (state.dragging === 'region') {
+    const deltaPx = x - state.dragLastX;
+    const deltaSamples = Math.round((deltaPx / rect.width) * len);
+    const regionLen = state.trimEnd - state.trimStart;
+    let newStart = state.trimStart + deltaSamples;
+    let newEnd = state.trimEnd + deltaSamples;
+    // Clamp to buffer bounds
+    if (newStart < 0) { newStart = 0; newEnd = regionLen; }
+    if (newEnd > len) { newEnd = len; newStart = len - regionLen; }
+    state.trimStart = newStart;
+    state.trimEnd = newEnd;
+    state.dragLastX = x;
   } else {
-    state.trimEnd = Math.max(sample, state.trimStart + 1);
+    let sample = Math.round((x / rect.width) * len);
+    const zeroCross = document.getElementById('zeroCrossToggle').checked;
+    if (zeroCross && state.zeroCrossings.length > 0) {
+      sample = nearestZeroCrossEither(state.zeroCrossings, sample);
+    }
+    if (state.dragging === 'start') {
+      state.trimStart = Math.min(sample, state.trimEnd - 1);
+    } else {
+      state.trimEnd = Math.max(sample, state.trimStart + 1);
+    }
   }
   drawWaveform();
 });
 
-window.addEventListener('mouseup', () => { state.dragging = null; });
+window.addEventListener('mouseup', () => {
+  canvas.classList.remove('grabbing-cursor');
+  state.dragging = null;
+});
 
 // ─── Resample ────────────────────────────────────────────────
 async function resampleBuffer(buffer, targetRate) {
