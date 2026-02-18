@@ -38,7 +38,7 @@ Based on community feedback. Implementing one at a time.
 
 ---
 
-## Feature 3: Zoom In/Out
+## Feature 3: Zoom In/Out ✅ Done
 
 **User request:** "Would be nice if you could zoom in and out, to really be able to trim precisely."
 
@@ -46,7 +46,7 @@ Based on community feedback. Implementing one at a time.
 - State: `viewStart`, `viewEnd` (sample indices for visible range)
 - Mouse wheel zoom centered on cursor position
 - `+`/`-`/`Fit` buttons + zoom level % indicator
-- Minimap canvas (24px) below main waveform with viewport indicator + click-to-scroll
+- Minimap canvas (32px) below main waveform with viewport indicator + click/drag-to-scroll
 - New helpers `sampleToPixel()`/`pixelToSample()` — all coordinate math goes through these
 - Keyboard shortcuts: `+`/`-` zoom, `0` fit, arrows scroll
 - Rewrite `drawWaveform()` to render only visible range

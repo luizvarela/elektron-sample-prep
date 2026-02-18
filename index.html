@@ -224,6 +224,45 @@ canvas#waveform.grabbing-cursor { cursor: grabbing; }
   margin-top: 4px;
 }
 
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.zoom-controls button {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.zoom-controls button:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+#zoomLevel {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+canvas#minimap {
+  width: 100%;
+  height: 32px;
+  margin-top: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 /* Playback */
 .playback-row {
   display: none;
@@ -550,6 +589,13 @@ footer {
       <span class="trim-info" id="trimInfo" title="Duration and sample count of the trimmed selection"></span>
       <span id="trimEnd" title="Trim end position in seconds">0.000s</span>
     </div>
+    <div class="zoom-controls">
+      <button id="zoomIn" title="Zoom in (+)">+</button>
+      <button id="zoomOut" title="Zoom out (&minus;)">&minus;</button>
+      <button id="zoomFit" title="Fit entire sample (0)">Fit</button>
+      <span id="zoomLevel">100%</span>
+    </div>
+    <canvas id="minimap"></canvas>
   </div>
 
   <!-- Playback -->
@@ -672,6 +718,8 @@ let state = {
   playbackOffset: 0,     // sample offset where playback started
   playbackBuffer: null,   // buffer being played (for duration calc)
   animFrameId: null,
+  viewStart: 0,           // first visible sample (zoom)
+  viewEnd: 0,             // last visible sample (zoom)
 };
 
 function getDevice() {
@@ -725,6 +773,25 @@ function nearestZeroCrossEither(crossings, index) {
   return best;
 }
 
+// ─── Coordinate Helpers ─────────────────────────────────────
+function sampleToPixel(sample, w) {
+  const viewLen = state.viewEnd - state.viewStart;
+  return ((sample - state.viewStart) / viewLen) * w;
+}
+
+function pixelToSample(px, w) {
+  const viewLen = state.viewEnd - state.viewStart;
+  return Math.round(state.viewStart + (px / w) * viewLen);
+}
+
+function updateZoomLevel() {
+  if (!state.originalBuffer) return;
+  const len = state.originalBuffer.length;
+  const viewLen = state.viewEnd - state.viewStart;
+  const pct = Math.round(len / viewLen * 100);
+  document.getElementById('zoomLevel').textContent = pct + '%';
+}
+
 // ─── Waveform Renderer ──────────────────────────────────────
 const canvas = document.getElementById('waveform');
 const ctx = canvas.getContext('2d');
@@ -744,24 +811,29 @@ function drawWaveform() {
   const mid = h / 2;
   const samples = buf.getChannelData(0);
   const len = samples.length;
-  const step = len / w;
+  const viewLen = state.viewEnd - state.viewStart;
+  const step = viewLen / w;
 
   // Clear
   ctx.fillStyle = '#111113';
   ctx.fillRect(0, 0, w, h);
 
-  // Trimmed region background
-  const startX = (state.trimStart / len) * w;
-  const endX = (state.trimEnd / len) * w;
+  // Trimmed region background (clamped to visible area)
+  const startX = sampleToPixel(state.trimStart, w);
+  const endX = sampleToPixel(state.trimEnd, w);
 
-  // Dim outside trim
+  // Dim outside trim (clamp to canvas bounds)
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0, 0, startX, h);
-  ctx.fillRect(endX, 0, w - endX, h);
+  if (startX > 0) ctx.fillRect(0, 0, Math.min(startX, w), h);
+  if (endX < w) ctx.fillRect(Math.max(endX, 0), 0, w - Math.max(endX, 0), h);
 
   // Active region subtle highlight
-  ctx.fillStyle = 'rgba(232, 132, 26, 0.04)';
-  ctx.fillRect(startX, 0, endX - startX, h);
+  const hlLeft = Math.max(startX, 0);
+  const hlRight = Math.min(endX, w);
+  if (hlRight > hlLeft) {
+    ctx.fillStyle = 'rgba(232, 132, 26, 0.04)';
+    ctx.fillRect(hlLeft, 0, hlRight - hlLeft, h);
+  }
 
   // Center line
   ctx.strokeStyle = '#333338';
@@ -771,11 +843,11 @@ function drawWaveform() {
   ctx.lineTo(w, mid);
   ctx.stroke();
 
-  // Waveform
+  // Waveform — iterate over visible range
   ctx.lineWidth = 1;
   for (let x = 0; x < w; x++) {
-    const i = Math.floor(x * step);
-    const end = Math.min(Math.floor((x + 1) * step), len);
+    const i = Math.max(0, Math.floor(state.viewStart + x * step));
+    const end = Math.min(Math.floor(state.viewStart + (x + 1) * step), len);
     let min = 1, max = -1;
     for (let j = i; j < end; j++) {
       if (samples[j] < min) min = samples[j];
@@ -792,16 +864,16 @@ function drawWaveform() {
   // Playhead
   if (state.playingSource && state.playbackBuffer) {
     const playheadSample = getPlayheadSample();
-    if (playheadSample !== null) {
-      const px = (playheadSample / len) * w;
+    if (playheadSample !== null && playheadSample >= state.viewStart && playheadSample <= state.viewEnd) {
+      const px = sampleToPixel(playheadSample, w);
       ctx.fillStyle = '#fff';
       ctx.fillRect(px - 0.5, 0, 1, h);
     }
   }
 
-  // Trim handles
-  drawHandle(startX, h, '#4caf50');
-  drawHandle(endX, h, '#e05050');
+  // Trim handles (only draw if visible)
+  if (startX >= -6 && startX <= w + 6) drawHandle(startX, h, '#4caf50');
+  if (endX >= -6 && endX <= w + 6) drawHandle(endX, h, '#e05050');
 
   // Update time labels
   const rate = buf.sampleRate;
@@ -812,6 +884,9 @@ function drawWaveform() {
   const trimDuration = trimSamples / rate;
   document.getElementById('trimInfo').textContent =
     `${trimDuration.toFixed(3)}s (${trimSamples} samples)`;
+
+  updateZoomLevel();
+  drawMinimap();
 }
 
 function getPlayheadSample() {
@@ -877,16 +952,67 @@ function drawHandle(x, h, color) {
   ctx.fill();
 }
 
+// ─── Minimap Renderer ────────────────────────────────────────
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+function drawMinimap() {
+  const buf = state.originalBuffer;
+  if (!buf) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = minimapCanvas.getBoundingClientRect();
+  minimapCanvas.width = rect.width * dpr;
+  minimapCanvas.height = rect.height * dpr;
+  minimapCtx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const mid = h / 2;
+  const samples = buf.getChannelData(0);
+  const len = samples.length;
+  const step = len / w;
+
+  // Clear
+  minimapCtx.fillStyle = '#111113';
+  minimapCtx.fillRect(0, 0, w, h);
+
+  // Waveform (full buffer, always)
+  minimapCtx.lineWidth = 1;
+  for (let x = 0; x < w; x++) {
+    const i = Math.floor(x * step);
+    const end = Math.min(Math.floor((x + 1) * step), len);
+    let min = 1, max = -1;
+    for (let j = i; j < end; j++) {
+      if (samples[j] < min) min = samples[j];
+      if (samples[j] > max) max = samples[j];
+    }
+    minimapCtx.strokeStyle = '#555560';
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(x + 0.5, mid + min * mid);
+    minimapCtx.lineTo(x + 0.5, mid + max * mid);
+    minimapCtx.stroke();
+  }
+
+  // Viewport rectangle
+  const vpLeft = (state.viewStart / len) * w;
+  const vpRight = (state.viewEnd / len) * w;
+  minimapCtx.fillStyle = 'rgba(232, 132, 26, 0.15)';
+  minimapCtx.fillRect(vpLeft, 0, vpRight - vpLeft, h);
+  minimapCtx.strokeStyle = 'rgba(232, 132, 26, 0.5)';
+  minimapCtx.lineWidth = 1;
+  minimapCtx.strokeRect(vpLeft + 0.5, 0.5, vpRight - vpLeft - 1, h - 1);
+}
+
 // ─── Waveform Interaction ────────────────────────────────────
 canvas.addEventListener('mousedown', (e) => {
   if (!state.originalBuffer) return;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const w = rect.width;
-  const len = state.originalBuffer.length;
 
-  const startX = (state.trimStart / len) * w;
-  const endX = (state.trimEnd / len) * w;
+  const startX = sampleToPixel(state.trimStart, w);
+  const endX = sampleToPixel(state.trimEnd, w);
 
   if (Math.abs(x - startX) < 12) {
     state.dragging = 'start';
@@ -908,10 +1034,9 @@ canvas.addEventListener('mousemove', (e) => {
 
   // Update cursor on hover when not dragging
   if (!state.dragging && state.originalBuffer) {
-    const len = state.originalBuffer.length;
     const w = rect.width;
-    const startX = (state.trimStart / len) * w;
-    const endX = (state.trimEnd / len) * w;
+    const startX = sampleToPixel(state.trimStart, w);
+    const endX = sampleToPixel(state.trimEnd, w);
     if (Math.abs(x - startX) < 12 || Math.abs(x - endX) < 12) {
       canvas.style.cursor = 'col-resize';
       canvas.classList.remove('grab-cursor');
@@ -929,7 +1054,8 @@ canvas.addEventListener('mousemove', (e) => {
 
   if (state.dragging === 'region') {
     const deltaPx = x - state.dragLastX;
-    const deltaSamples = Math.round((deltaPx / rect.width) * len);
+    const viewLen = state.viewEnd - state.viewStart;
+    const deltaSamples = Math.round((deltaPx / rect.width) * viewLen);
     const regionLen = state.trimEnd - state.trimStart;
     let newStart = state.trimStart + deltaSamples;
     let newEnd = state.trimEnd + deltaSamples;
@@ -940,7 +1066,7 @@ canvas.addEventListener('mousemove', (e) => {
     state.trimEnd = newEnd;
     state.dragLastX = x;
   } else {
-    let sample = Math.round((x / rect.width) * len);
+    let sample = Math.max(0, Math.min(len, pixelToSample(x, rect.width)));
     const zeroCross = document.getElementById('zeroCrossToggle').checked;
     if (zeroCross && state.zeroCrossings.length > 0) {
       sample = nearestZeroCrossEither(state.zeroCrossings, sample);
@@ -1178,6 +1304,8 @@ async function loadFile(file) {
   if (!state.fileChannels) state.fileChannels = buf.numberOfChannels;
   state.trimStart = 0;
   state.trimEnd = buf.length;
+  state.viewStart = 0;
+  state.viewEnd = buf.length;
 
   // Compute zero crossings
   state.zeroCrossings = findZeroCrossings(buf.getChannelData(0));
@@ -1203,6 +1331,8 @@ function resetState() {
   state.fileName = '';
   state.trimStart = 0;
   state.trimEnd = 0;
+  state.viewStart = 0;
+  state.viewEnd = 0;
   state.zeroCrossings = [];
   dropZone.classList.remove('has-file');
   document.getElementById('waveformContainer').classList.remove('visible');
@@ -1448,6 +1578,126 @@ document.getElementById('deviceSelect').addEventListener('change', () => {
 document.getElementById('zeroCrossToggle').addEventListener('change', (e) => {
   if (state.originalBuffer && e.target.checked) {
     applyAutoZeroCross();
+    drawWaveform();
+  }
+});
+
+// ─── Zoom ────────────────────────────────────────────────────
+function zoomAround(anchor, factor) {
+  const len = state.originalBuffer.length;
+  const viewLen = state.viewEnd - state.viewStart;
+  const newViewLen = Math.max(64, Math.min(len, Math.round(viewLen * factor)));
+  const anchorFrac = (anchor - state.viewStart) / viewLen;
+  let newStart = Math.round(anchor - anchorFrac * newViewLen);
+  let newEnd = newStart + newViewLen;
+  if (newStart < 0) { newStart = 0; newEnd = newViewLen; }
+  if (newEnd > len) { newEnd = len; newStart = len - newViewLen; }
+  state.viewStart = Math.max(0, newStart);
+  state.viewEnd = Math.min(len, newEnd);
+}
+
+canvas.addEventListener('wheel', (e) => {
+  if (!state.originalBuffer) return;
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const cursorSample = pixelToSample(x, rect.width);
+  const factor = e.deltaY < 0 ? 0.8 : 1.25;
+  zoomAround(cursorSample, factor);
+  drawWaveform();
+}, { passive: false });
+
+document.getElementById('zoomIn').addEventListener('click', () => {
+  if (!state.originalBuffer) return;
+  const mid = (state.viewStart + state.viewEnd) / 2;
+  zoomAround(mid, 0.5);
+  drawWaveform();
+});
+
+document.getElementById('zoomOut').addEventListener('click', () => {
+  if (!state.originalBuffer) return;
+  const mid = (state.viewStart + state.viewEnd) / 2;
+  zoomAround(mid, 2.0);
+  drawWaveform();
+});
+
+document.getElementById('zoomFit').addEventListener('click', () => {
+  if (!state.originalBuffer) return;
+  state.viewStart = 0;
+  state.viewEnd = state.originalBuffer.length;
+  drawWaveform();
+});
+
+// ─── Minimap Interaction ─────────────────────────────────────
+let minimapDragging = false;
+
+minimapCanvas.addEventListener('mousedown', (e) => {
+  if (!state.originalBuffer) return;
+  minimapDragging = true;
+  panToMinimapX(e);
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!minimapDragging) return;
+  panToMinimapX(e);
+});
+
+window.addEventListener('mouseup', () => {
+  minimapDragging = false;
+});
+
+function panToMinimapX(e) {
+  const rect = minimapCanvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+  const len = state.originalBuffer.length;
+  const clickSample = Math.round((x / rect.width) * len);
+  const viewLen = state.viewEnd - state.viewStart;
+  let newStart = Math.round(clickSample - viewLen / 2);
+  let newEnd = newStart + viewLen;
+  if (newStart < 0) { newStart = 0; newEnd = viewLen; }
+  if (newEnd > len) { newEnd = len; newStart = len - viewLen; }
+  state.viewStart = newStart;
+  state.viewEnd = newEnd;
+  drawWaveform();
+}
+
+// ─── Keyboard Shortcuts ──────────────────────────────────────
+window.addEventListener('keydown', (e) => {
+  if (!state.originalBuffer) return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  const len = state.originalBuffer.length;
+  const viewLen = state.viewEnd - state.viewStart;
+
+  if (e.key === '+' || e.key === '=') {
+    e.preventDefault();
+    const mid = (state.viewStart + state.viewEnd) / 2;
+    zoomAround(mid, 0.5);
+    drawWaveform();
+  } else if (e.key === '-') {
+    e.preventDefault();
+    const mid = (state.viewStart + state.viewEnd) / 2;
+    zoomAround(mid, 2.0);
+    drawWaveform();
+  } else if (e.key === '0') {
+    e.preventDefault();
+    state.viewStart = 0;
+    state.viewEnd = len;
+    drawWaveform();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const scroll = Math.round(viewLen * 0.25);
+    state.viewStart = Math.max(0, state.viewStart - scroll);
+    state.viewEnd = state.viewStart + viewLen;
+    if (state.viewEnd > len) { state.viewEnd = len; state.viewStart = len - viewLen; }
+    drawWaveform();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    const scroll = Math.round(viewLen * 0.25);
+    state.viewEnd = Math.min(len, state.viewEnd + scroll);
+    state.viewStart = state.viewEnd - viewLen;
+    if (state.viewStart < 0) { state.viewStart = 0; state.viewEnd = viewLen; }
     drawWaveform();
   }
 });
