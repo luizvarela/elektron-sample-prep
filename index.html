@@ -539,6 +539,176 @@ footer {
   line-height: 1.4;
 }
 
+/* Batch Convert */
+.batch-section {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+
+.batch-title {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.batch-drop {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.batch-drop:hover, .batch-drop.dragover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.batch-drop-text {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.batch-drop-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.batch-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.batch-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.batch-file:nth-child(odd) { background: rgba(255,255,255,0.02); }
+
+.batch-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.batch-file-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.batch-file-status {
+  font-size: 12px;
+  width: 20px;
+  text-align: center;
+}
+
+.batch-file-status.pending { color: var(--text-dim); }
+.batch-file-status.processing { color: var(--accent); }
+.batch-file-status.done { color: var(--green); }
+.batch-file-status.error { color: var(--red); }
+
+.batch-file-dl {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 6px;
+  font-family: var(--mono);
+  transition: all 0.15s;
+}
+
+.batch-file-dl:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.batch-actions {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.batch-actions.visible { display: flex; }
+
+.batch-summary {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.batch-btn {
+  padding: 10px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.batch-btn:hover { background: var(--accent-dim); }
+.batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.batch-btn-clear {
+  padding: 10px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.batch-btn-clear:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.batch-progress {
+  display: none;
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 2px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.batch-progress.visible { display: block; }
+
+.batch-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .source-grid { grid-template-columns: repeat(2, 1fr); }
@@ -629,8 +799,8 @@ footer {
     </div>
   </div>
 
-  <!-- Output Settings -->
-  <div class="panel" id="settingsPanel">
+  <!-- Output Settings (always visible — applies to single file and batch) -->
+  <div class="panel visible" id="settingsPanel">
     <div class="panel-title">Output Settings</div>
     <div class="help-text">Controls how your sample is processed before export. The target format is set automatically based on your selected device.</div>
     <div class="setting-row">
@@ -684,6 +854,25 @@ footer {
 
   <!-- Export -->
   <button class="export-btn" id="exportBtn" title="Download the processed sample as a WAV file ready to load onto your Elektron device via Transfer, Elektroid, or USB. The file will be trimmed, converted, and normalized based on your settings above.">Export WAV</button>
+
+  <!-- Batch Convert -->
+  <div class="batch-section">
+    <div class="batch-title">Batch Convert</div>
+    <div class="batch-drop" id="batchDrop">
+      <div class="batch-drop-text">Drop multiple audio files here or click to browse</div>
+      <div class="batch-drop-hint">All files converted with current device &amp; output settings</div>
+      <input type="file" id="batchInput" multiple accept="audio/*,.wav,.aiff,.aif,.mp3,.flac,.ogg" style="display:none">
+    </div>
+    <div class="batch-list" id="batchList"></div>
+    <div class="batch-progress" id="batchProgress">
+      <div class="batch-progress-bar" id="batchProgressBar"></div>
+    </div>
+    <div class="batch-actions" id="batchActions">
+      <span class="batch-summary" id="batchSummary"></span>
+      <button class="batch-btn-clear" id="batchClear">Clear</button>
+      <button class="batch-btn" id="batchConvert">Convert All &amp; Download ZIP</button>
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -1102,19 +1291,13 @@ async function resampleBuffer(buffer, targetRate) {
 }
 
 // ─── Process Buffer ──────────────────────────────────────────
-async function processBuffer() {
-  const buf = state.originalBuffer;
-  if (!buf) return null;
-
-  const device = getDevice();
-  const start = state.trimStart;
-  const end = state.trimEnd;
-  const trimLen = end - start;
+async function processAudioBuffer(buf, trimStart, trimEnd, device, { normalize }) {
+  const trimLen = trimEnd - trimStart;
 
   // Extract trimmed region
   const numChannels = Math.min(buf.numberOfChannels, device.channels);
-  const ctx = new OfflineAudioContext(numChannels, trimLen, buf.sampleRate);
-  const trimmed = ctx.createBuffer(numChannels, trimLen, buf.sampleRate);
+  const offCtx = new OfflineAudioContext(numChannels, trimLen, buf.sampleRate);
+  const trimmed = offCtx.createBuffer(numChannels, trimLen, buf.sampleRate);
 
   if (numChannels === 1 && buf.numberOfChannels > 1) {
     // Mono downmix
@@ -1123,7 +1306,7 @@ async function processBuffer() {
     for (let i = 0; i < trimLen; i++) {
       let sum = 0;
       for (let ch = 0; ch < chCount; ch++) {
-        sum += buf.getChannelData(ch)[start + i];
+        sum += buf.getChannelData(ch)[trimStart + i];
       }
       out[i] = sum / chCount;
     }
@@ -1132,13 +1315,13 @@ async function processBuffer() {
       const src = buf.getChannelData(ch);
       const dst = trimmed.getChannelData(ch);
       for (let i = 0; i < trimLen; i++) {
-        dst[i] = src[start + i];
+        dst[i] = src[trimStart + i];
       }
     }
   }
 
   // Normalize
-  if (document.getElementById('normalizeToggle').checked) {
+  if (normalize) {
     const targetDb = -1;
     const targetAmp = Math.pow(10, targetDb / 20);
     let peak = 0;
@@ -1161,14 +1344,13 @@ async function processBuffer() {
   }
 
   // Micro-fade edges to prevent clicks (64 samples = ~1.3ms at 48kHz)
-  // Short enough to be inaudible, long enough to eliminate loop-boundary clicks
   const fadeLen = Math.min(64, Math.floor(trimmed.length / 4));
   for (let ch = 0; ch < trimmed.numberOfChannels; ch++) {
     const data = trimmed.getChannelData(ch);
     for (let i = 0; i < fadeLen; i++) {
-      const gain = i / fadeLen; // linear ramp 0→1
-      data[i] *= gain;                          // fade in
-      data[data.length - 1 - i] *= gain;        // fade out
+      const gain = i / fadeLen;
+      data[i] *= gain;
+      data[data.length - 1 - i] *= gain;
     }
   }
 
@@ -1189,6 +1371,14 @@ async function processBuffer() {
   }
 
   return resampled;
+}
+
+async function processBuffer() {
+  const buf = state.originalBuffer;
+  if (!buf) return null;
+  return processAudioBuffer(buf, state.trimStart, state.trimEnd, getDevice(), {
+    normalize: document.getElementById('normalizeToggle').checked
+  });
 }
 
 // ─── WAV Encoder ─────────────────────────────────────────────
@@ -1338,7 +1528,6 @@ function resetState() {
   document.getElementById('waveformContainer').classList.remove('visible');
   document.getElementById('playbackRow').classList.remove('visible');
   document.getElementById('sourcePanel').classList.remove('visible');
-  document.getElementById('settingsPanel').classList.remove('visible');
   document.getElementById('loopPanel').classList.remove('visible');
   document.getElementById('exportBtn').classList.remove('visible');
   document.getElementById('conversionWarning').classList.remove('visible');
@@ -1393,7 +1582,6 @@ function updateUI() {
   document.getElementById('waveformContainer').classList.add('visible');
   document.getElementById('playbackRow').classList.add('visible');
   document.getElementById('sourcePanel').classList.add('visible');
-  document.getElementById('settingsPanel').classList.add('visible');
   document.getElementById('loopPanel').classList.add('visible');
   document.getElementById('exportBtn').classList.add('visible');
 }
@@ -1569,8 +1757,17 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
   }
 });
 
+// ─── Target Format Display ────────────────────────────────────
+function updateTargetFormat() {
+  const device = getDevice();
+  const chLabel = device.channels === 1 ? 'Mono' : 'Stereo';
+  document.getElementById('targetFormat').textContent =
+    `${device.rate / 1000}kHz / ${device.depth}-bit / ${chLabel}`;
+}
+
 // ─── Settings Changes ────────────────────────────────────────
 document.getElementById('deviceSelect').addEventListener('change', () => {
+  updateTargetFormat();
   if (state.originalBuffer) updateUI();
   drawWaveform();
 });
@@ -1705,7 +1902,263 @@ window.addEventListener('keydown', (e) => {
 // ─── Resize ──────────────────────────────────────────────────
 window.addEventListener('resize', () => { if (state.originalBuffer) drawWaveform(); });
 
+// ─── ZIP Encoder (STORE, no compression) ─────────────────────
+let _crc32Table = null;
+function crc32(buf) {
+  if (!_crc32Table) {
+    _crc32Table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      _crc32Table[i] = c;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) crc = _crc32Table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function createZip(files) {
+  const entries = [];
+  let offset = 0;
+  for (const { name, blob } of files) {
+    const data = new Uint8Array(await blob.arrayBuffer());
+    const crc = crc32(data);
+    const nameBytes = new TextEncoder().encode(name);
+    // Local file header: 30 + nameLen
+    const localHeader = new ArrayBuffer(30 + nameBytes.length);
+    const lv = new DataView(localHeader);
+    lv.setUint32(0, 0x04034b50, true);  // signature
+    lv.setUint16(4, 20, true);          // version needed
+    lv.setUint16(6, 0, true);           // flags
+    lv.setUint16(8, 0, true);           // compression: STORE
+    lv.setUint16(10, 0, true);          // mod time
+    lv.setUint16(12, 0, true);          // mod date
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true); // compressed size
+    lv.setUint32(22, data.length, true); // uncompressed size
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);          // extra field length
+    new Uint8Array(localHeader).set(nameBytes, 30);
+    entries.push({ nameBytes, data, crc, localOffset: offset, localHeader });
+    offset += localHeader.byteLength + data.length;
+  }
+  // Central directory
+  const cdParts = [];
+  let cdSize = 0;
+  for (const e of entries) {
+    const cd = new ArrayBuffer(46 + e.nameBytes.length);
+    const cv = new DataView(cd);
+    cv.setUint32(0, 0x02014b50, true);  // signature
+    cv.setUint16(4, 20, true);          // version made by
+    cv.setUint16(6, 20, true);          // version needed
+    cv.setUint16(8, 0, true);           // flags
+    cv.setUint16(10, 0, true);          // compression
+    cv.setUint16(12, 0, true);          // mod time
+    cv.setUint16(14, 0, true);          // mod date
+    cv.setUint32(16, e.crc, true);
+    cv.setUint32(20, e.data.length, true);
+    cv.setUint32(24, e.data.length, true);
+    cv.setUint16(28, e.nameBytes.length, true);
+    cv.setUint16(30, 0, true);          // extra field length
+    cv.setUint16(32, 0, true);          // comment length
+    cv.setUint16(34, 0, true);          // disk number start
+    cv.setUint16(36, 0, true);          // internal attributes
+    cv.setUint32(38, 0, true);          // external attributes
+    cv.setUint32(42, e.localOffset, true);
+    new Uint8Array(cd).set(e.nameBytes, 46);
+    cdParts.push(cd);
+    cdSize += cd.byteLength;
+  }
+  // End of central directory
+  const eocd = new ArrayBuffer(22);
+  const ev = new DataView(eocd);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, cdSize, true);
+  ev.setUint32(16, offset, true);
+  ev.setUint16(20, 0, true);
+
+  const parts = [];
+  for (const e of entries) { parts.push(e.localHeader); parts.push(e.data.buffer); }
+  for (const cd of cdParts) parts.push(cd);
+  parts.push(eocd);
+  return new Blob(parts, { type: 'application/zip' });
+}
+
+// ─── Batch Convert ───────────────────────────────────────────
+const batchState = { files: [] };
+
+const batchDrop = document.getElementById('batchDrop');
+const batchInput = document.getElementById('batchInput');
+const batchListEl = document.getElementById('batchList');
+const batchActions = document.getElementById('batchActions');
+const batchSummary = document.getElementById('batchSummary');
+const batchConvertBtn = document.getElementById('batchConvert');
+const batchClearBtn = document.getElementById('batchClear');
+const batchProgress = document.getElementById('batchProgress');
+const batchProgressBar = document.getElementById('batchProgressBar');
+
+batchDrop.addEventListener('click', () => batchInput.click());
+batchDrop.addEventListener('dragover', (e) => { e.preventDefault(); batchDrop.classList.add('dragover'); });
+batchDrop.addEventListener('dragleave', () => batchDrop.classList.remove('dragover'));
+batchDrop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  batchDrop.classList.remove('dragover');
+  if (e.dataTransfer.files.length) addBatchFiles(e.dataTransfer.files);
+});
+batchInput.addEventListener('change', () => {
+  if (batchInput.files.length) addBatchFiles(batchInput.files);
+  batchInput.value = '';
+});
+
+function addBatchFiles(fileList) {
+  for (const file of fileList) {
+    batchState.files.push({ file, status: 'pending', result: null, wavName: '', error: '' });
+  }
+  renderBatchList();
+}
+
+function renderBatchList() {
+  batchListEl.innerHTML = '';
+  const total = batchState.files.length;
+  const done = batchState.files.filter(f => f.status === 'done').length;
+  const errors = batchState.files.filter(f => f.status === 'error').length;
+
+  for (let i = 0; i < batchState.files.length; i++) {
+    const entry = batchState.files[i];
+    const row = document.createElement('div');
+    row.className = 'batch-file';
+
+    const statusEl = document.createElement('span');
+    statusEl.className = 'batch-file-status ' + entry.status;
+    if (entry.status === 'pending') statusEl.textContent = '·';
+    else if (entry.status === 'processing') statusEl.textContent = '⟳';
+    else if (entry.status === 'done') statusEl.textContent = '✓';
+    else if (entry.status === 'error') statusEl.title = entry.error, statusEl.textContent = '✗';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'batch-file-name';
+    nameEl.textContent = entry.file.name;
+
+    const metaEl = document.createElement('span');
+    metaEl.className = 'batch-file-meta';
+    const kb = (entry.file.size / 1024).toFixed(0);
+    metaEl.textContent = kb + ' KB';
+
+    row.appendChild(statusEl);
+    row.appendChild(nameEl);
+    row.appendChild(metaEl);
+
+    if (entry.status === 'done' && entry.result) {
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'batch-file-dl';
+      dlBtn.textContent = '↓';
+      dlBtn.title = 'Download this file';
+      dlBtn.addEventListener('click', () => downloadBlob(entry.result, entry.wavName));
+      row.appendChild(dlBtn);
+    }
+
+    batchListEl.appendChild(row);
+  }
+
+  if (total > 0) {
+    batchActions.classList.add('visible');
+    let summary = `${total} file${total !== 1 ? 's' : ''}`;
+    if (done > 0) summary += ` · ${done} converted`;
+    if (errors > 0) summary += ` · ${errors} failed`;
+    batchSummary.textContent = summary;
+  } else {
+    batchActions.classList.remove('visible');
+  }
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+batchClearBtn.addEventListener('click', () => {
+  batchState.files = [];
+  batchListEl.innerHTML = '';
+  batchActions.classList.remove('visible');
+  batchProgress.classList.remove('visible');
+  batchProgressBar.style.width = '0%';
+});
+
+batchConvertBtn.addEventListener('click', async () => {
+  if (batchState.files.length === 0) return;
+  const device = getDevice();
+  const normalize = document.getElementById('normalizeToggle').checked;
+  const useZeroCross = document.getElementById('zeroCrossToggle').checked;
+  const suffix = device.name.replace(/[:\s]/g, '_');
+  const audioCtx = getAudioCtx();
+  const total = batchState.files.length;
+
+  batchConvertBtn.disabled = true;
+  batchClearBtn.disabled = true;
+  batchProgress.classList.add('visible');
+  batchProgressBar.style.width = '0%';
+
+  for (let i = 0; i < total; i++) {
+    const entry = batchState.files[i];
+    if (entry.status === 'done') { continue; }
+    entry.status = 'processing';
+    renderBatchList();
+
+    try {
+      const arrayBuffer = await entry.file.arrayBuffer();
+      const buf = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+
+      // Auto zero-cross trim on full buffer
+      let trimStart = 0;
+      let trimEnd = buf.length;
+      if (useZeroCross) {
+        const crossings = findZeroCrossings(buf.getChannelData(0));
+        if (crossings.length > 0) {
+          trimStart = nearestZeroCross(crossings, 0, 'forward');
+          trimEnd = nearestZeroCross(crossings, buf.length, 'backward');
+        }
+      }
+
+      const processed = await processAudioBuffer(buf, trimStart, trimEnd, device, { normalize });
+      const blob = encodeWav(processed);
+      const baseName = entry.file.name.replace(/\.[^.]+$/, '');
+      entry.wavName = `${baseName}_${suffix}.wav`;
+      entry.result = blob;
+      entry.status = 'done';
+    } catch (err) {
+      entry.status = 'error';
+      entry.error = err.message || 'Decode failed';
+    }
+
+    batchProgressBar.style.width = Math.round(((i + 1) / total) * 100) + '%';
+    renderBatchList();
+  }
+
+  // Collect successful results and download ZIP
+  const successFiles = batchState.files
+    .filter(f => f.status === 'done' && f.result)
+    .map(f => ({ name: f.wavName, blob: f.result }));
+
+  if (successFiles.length > 0) {
+    const zip = await createZip(successFiles);
+    downloadBlob(zip, `ElekPrep_Batch_${suffix}.zip`);
+  }
+
+  batchConvertBtn.disabled = false;
+  batchClearBtn.disabled = false;
+});
+
 // ─── Init ────────────────────────────────────────────────────
+updateTargetFormat();
 updateLoopCalc();
 </script>
 </body>

@@ -8,8 +8,8 @@ Based on community feedback. Implementing one at a time.
 |---|---------|--------|-------|
 | 1 | Drag entire trim region | **Done** | ~40 |
 | 2 | Loop playback (with drag) | **Done** | ~50 |
-| 3 | Zoom in/out + minimap | **Next** | ~180 |
-| 4 | Batch import/conversion | Planned | ~160 |
+| 3 | Zoom in/out + minimap | **Done** | ~180 |
+| 4 | Batch import/conversion | **Done** | ~250 |
 
 ---
 
