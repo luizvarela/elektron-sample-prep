@@ -536,6 +536,127 @@ footer a:hover {
   border-color: var(--accent);
 }
 
+/* Changelog modal */
+.changelog-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.changelog-overlay.visible {
+  display: flex;
+}
+
+.changelog-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.changelog-modal h2 {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.changelog-entry {
+  margin-bottom: 16px;
+}
+
+.changelog-entry:last-child {
+  margin-bottom: 0;
+}
+
+.changelog-version {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.changelog-date {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-left: 8px;
+}
+
+.changelog-entry h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin: 8px 0 4px;
+}
+
+.changelog-entry ul {
+  list-style: none;
+  padding: 0;
+}
+
+.changelog-entry li {
+  font-size: 13px;
+  color: var(--text);
+  padding: 2px 0 2px 12px;
+  position: relative;
+}
+
+.changelog-entry li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.changelog-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 12px;
+}
+
+.changelog-footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.changelog-footer a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.whats-new-link {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-left: 8px;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.whats-new-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Help text */
 .help-text {
   font-size: 12px;
@@ -734,7 +855,7 @@ footer a:hover {
 <body>
 
 <header>
-  <div class="logo">ElekPrep <span id="versionBadge"></span></div>
+  <div class="logo">ElekPrep <span id="versionBadge"></span> <span class="whats-new-link" id="whatsNewBtn">What's new</span></div>
   <div class="device-select">
     <label>Device</label>
     <select id="deviceSelect" title="Select your Elektron device. This sets the target sample rate, bit depth, channel count, and max sample length for export.">
@@ -889,6 +1010,10 @@ footer a:hover {
   </div>
 </main>
 
+<div class="changelog-overlay" id="changelogOverlay">
+  <div class="changelog-modal" id="changelogModal"></div>
+</div>
+
 <footer>
   <span id="footerVersion"></span> — Free sample prep for Elektron devices. No upload, all processing in your browser.
   <br>
@@ -898,10 +1023,70 @@ footer a:hover {
 </footer>
 
 <script>
-// ─── Version ────────────────────────────────────────────────
+// ─── Version & Changelog ────────────────────────────────────
 const VERSION = '0.2.0';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 document.getElementById('footerVersion').textContent = 'ElekPrep v' + VERSION;
+
+const CHANGELOG = [
+  {
+    version: '0.2.0', date: '2026-02-20',
+    added: [
+      'Feedback funnel — report bugs and request features from the app',
+      'What\'s new changelog modal',
+      'Version badge in header and footer',
+    ],
+    improved: [
+      'AIFF/AIF file support on Chrome',
+    ],
+  },
+  {
+    version: '0.1.0', date: '2026-02-15',
+    added: [
+      'Batch import and conversion with ZIP download',
+      'Zoom in/out with minimap for precise trimming',
+      'Device profiles: Digitakt, Digitakt II, Analog Rytm, Model:Samples',
+      'Zero-crossing snap for clean loop points',
+      'Normalization, fade in/out, and DC offset removal',
+    ],
+  },
+];
+
+function renderChangelog() {
+  const modal = document.getElementById('changelogModal');
+  let html = '<h2>What\'s new</h2>';
+  for (const entry of CHANGELOG) {
+    html += '<div class="changelog-entry">';
+    html += `<span class="changelog-version">v${entry.version}</span>`;
+    html += `<span class="changelog-date">${entry.date}</span>`;
+    for (const group of ['added', 'improved', 'fixed']) {
+      if (entry[group] && entry[group].length) {
+        const label = group.charAt(0).toUpperCase() + group.slice(1);
+        html += `<h4>${label}</h4><ul>`;
+        for (const item of entry[group]) html += `<li>${item}</li>`;
+        html += '</ul>';
+      }
+    }
+    html += '</div>';
+  }
+  html += '<div class="changelog-footer">';
+  html += '<a href="https://github.com/luizvarela/elektron-sample-prep/releases" target="_blank" rel="noopener">Full release notes on GitHub</a>';
+  html += '</div>';
+  modal.innerHTML = html;
+}
+
+renderChangelog();
+
+const changelogOverlay = document.getElementById('changelogOverlay');
+document.getElementById('whatsNewBtn').addEventListener('click', () => {
+  changelogOverlay.classList.add('visible');
+});
+changelogOverlay.addEventListener('click', (e) => {
+  if (e.target === changelogOverlay) changelogOverlay.classList.remove('visible');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') changelogOverlay.classList.remove('visible');
+});
 
 // ─── Device Profiles ─────────────────────────────────────────
 const DEVICES = {
