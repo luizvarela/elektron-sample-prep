@@ -1,0 +1,51 @@
+name: Device Profile Request
+description: Request support for a new Elektron device
+labels: ["device-profile"]
+body:
+  - type: input
+    id: device-name
+    attributes:
+      label: Device name
+      placeholder: "Syntakt, Octatrack MKII, etc."
+    validations:
+      required: true
+  - type: input
+    id: sample-rate
+    attributes:
+      label: Sample rate (Hz)
+      placeholder: "48000"
+    validations:
+      required: true
+  - type: input
+    id: bit-depth
+    attributes:
+      label: Bit depth
+      placeholder: "16"
+    validations:
+      required: true
+  - type: dropdown
+    id: channels
+    attributes:
+      label: Mono or stereo?
+      options:
+        - Mono
+        - Stereo
+    validations:
+      required: true
+  - type: input
+    id: max-length
+    attributes:
+      label: Max sample length (seconds)
+      placeholder: "33"
+    validations:
+      required: true
+  - type: input
+    id: specs-link
+    attributes:
+      label: Link to specs or manual
+      description: Official page, Elektronauts thread, etc.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Anything else about this device's sample requirements

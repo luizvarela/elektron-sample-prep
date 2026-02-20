@@ -1,0 +1,79 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ElekPrep version
+      description: Shown in the bottom-left corner of the app
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15, Windows 11, etc."
+    validations:
+      required: true
+  - type: dropdown
+    id: device-profile
+    attributes:
+      label: Device profile selected
+      options:
+        - Digitakt
+        - Digitakt II
+        - Analog Rytm
+        - Model:Samples
+    validations:
+      required: true
+  - type: input
+    id: file-type
+    attributes:
+      label: Audio file type
+      description: Format of the file you loaded
+      placeholder: "WAV, AIFF, MP3, etc."
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do?
+      placeholder: |
+        1. Load a stereo WAV file
+        2. Set trim points
+        3. Click Export
+        4. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, sample files, console errors, etc.

@@ -522,6 +522,20 @@ footer {
   opacity: 0.5;
 }
 
+footer a {
+  color: var(--text);
+  opacity: 1;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+footer a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Help text */
 .help-text {
   font-size: 12px;
@@ -720,7 +734,7 @@ footer {
 <body>
 
 <header>
-  <div class="logo">ElekPrep <span>v0.1</span></div>
+  <div class="logo">ElekPrep <span id="versionBadge"></span></div>
   <div class="device-select">
     <label>Device</label>
     <select id="deviceSelect" title="Select your Elektron device. This sets the target sample rate, bit depth, channel count, and max sample length for export.">
@@ -876,10 +890,19 @@ footer {
 </main>
 
 <footer>
-  ElekPrep — Free sample prep for Elektron devices. No upload, all processing in your browser.
+  <span id="footerVersion"></span> — Free sample prep for Elektron devices. No upload, all processing in your browser.
+  <br>
+  <a href="https://github.com/luizvarela/elektron-sample-prep/issues/new?template=bug_report.yml" target="_blank" rel="noopener">Report a bug</a>
+  &middot;
+  <a href="https://github.com/luizvarela/elektron-sample-prep/issues/new?template=feature_request.yml" target="_blank" rel="noopener">Request a feature</a>
 </footer>
 
 <script>
+// ─── Version ────────────────────────────────────────────────
+const VERSION = '0.2.0';
+document.getElementById('versionBadge').textContent = 'v' + VERSION;
+document.getElementById('footerVersion').textContent = 'ElekPrep v' + VERSION;
+
 // ─── Device Profiles ─────────────────────────────────────────
 const DEVICES = {
   digitakt:        { name: 'Digitakt',       rate: 48000, depth: 16, channels: 1, maxSeconds: 33 },

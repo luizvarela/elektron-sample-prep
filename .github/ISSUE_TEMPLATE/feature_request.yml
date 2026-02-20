@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest an improvement or new capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow pain point or limitation
+      placeholder: "When I'm prepping samples for a live set, I need to..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe your ideal solution
+      description: How would this work in the app?
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Example workflow
+      description: Walk through a concrete use case
+      placeholder: |
+        1. Load a long recording
+        2. Mark multiple chop points
+        3. Export all slices at once
+  - type: dropdown
+    id: device
+    attributes:
+      label: Which device is this most relevant to?
+      options:
+        - All devices
+        - Digitakt
+        - Digitakt II
+        - Analog Rytm
+        - Model:Samples
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Other tools or workarounds you currently use
